@@ -150,14 +150,14 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
                                     bias = (tdnn_rand_estimate$estimate_loo - mu_rand),
                                     s_1 = tdnn_rand_estimate$s_1_B_NN,
                                     c = tdnn_rand_estimate$c_B_NN,
-                                    variance = ifelse(est_variance,as.numeric(tdnn_rand_estimate$variance),NA),
+                                    variance = if(est_variance){as.numeric(tdnn_rand_estimate$variance)} else{NA},
                                     method = 'tdnn_rand')
     tdnn_fixed_results <- data.frame(estimate = tdnn_fixed_estimate$estimate_loo,
                                      loss = (tdnn_fixed_estimate$estimate_loo - mu_fixed)^2,
                                      bias = (tdnn_fixed_estimate$estimate_loo - mu_fixed),
                                     s_1 = tdnn_fixed_estimate$s_1_B_NN,
                                     c = tdnn_fixed_estimate$c_B_NN,
-                                    variance = ifelse(est_variance,as.numeric(tdnn_fixed_estimate$variance),NA),
+                                    variance = if(est_variance){as.numeric(tdnn_fixed_estimate$variance)} else{NA},
                                     method = 'tdnn_fixed')
     
     if(verbose) tictoc::tic("dnn results")
@@ -176,13 +176,13 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
                                    loss = (dnn_rand_estimate$estimate_loo - mu_rand)^2,
                                    bias = (dnn_rand_estimate$estimate_loo - mu_rand),
                                     s_1 = dnn_rand_estimate$s_1_B_NN,
-                                    variance = ifelse(est_variance,as.numeric(dnn_rand_estimate$variance),NA),
+                                    variance = if(est_variance){as.numeric(dnn_rand_estimate$variance)} else{NA},
                                     method = 'dnn_rand')
     dnn_fixed_results <- data.frame(estimate = dnn_fixed_estimate$estimate_loo,
                                     loss = (dnn_fixed_estimate$estimate_loo - mu_fixed)^2,
                                     bias = (dnn_fixed_estimate$estimate_loo - mu_fixed),
                                      s_1 = dnn_fixed_estimate$s_1_B_NN,
-                                     variance = ifelse(est_variance,as.numeric(dnn_fixed_estimate$variance),NA),
+                                     variance = if(est_variance){as.numeric(dnn_fixed_estimate$variance)} else{NA},
                                      method = 'dnn_fixed')
 
     if(verbose) tictoc::tic("knn results")
@@ -199,13 +199,13 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
                                    loss = (knn_rand_estimate$pred_knn - mu_rand)^2,
                                    bias = (knn_rand_estimate$pred_knn - mu_rand),
                                    k = knn_rand_estimate$best_k,
-                                   variance = ifelse(est_variance,as.numeric(knn_rand_estimate$variance),NA),
+                                   variance = if(est_variance){as.numeric(knn_rand_estimate$variance)} else{NA},
                                    method = 'knn_rand')
     knn_fixed_results <- data.frame(estimate = knn_fixed_estimate$pred_knn,
                                     loss = (knn_fixed_estimate$pred_knn - mu_fixed)^2,
                                     bias = (knn_fixed_estimate$pred_knn - mu_fixed),
                                     k = knn_fixed_estimate$best_k,
-                                    variance = ifelse(est_variance,as.numeric(knn_fixed_estimate$variance),NA),
+                                    variance = if(est_variance){as.numeric(knn_fixed_estimate$variance)} else{NA},
                                     method = 'knn_fixed')
     
     results <- bind_rows(tdnn_rand_results, tdnn_fixed_results, dnn_rand_results, dnn_fixed_results, knn_rand_results, knn_fixed_results )
@@ -228,17 +228,13 @@ results <- map_dfr(1:num_reps, function(i){
 
     
 # View and Save Results ---------------------------------------------------
-if(est_variance){
-    results %>% group_by(method) %>% summarize(MSE = mean(loss),
-                                               Bias = mean(bias),
-                                               Estimate = mean(estimate),
-                                               Estimate_SE = sd(estimate),
-                                               Variance = mean(variance)) %>% print()
+
+results %>% group_by(method) %>% summarize(MSE = mean(loss),
+                                           Bias = mean(bias),
+                                           Estimate = mean(estimate),
+                                           Estimate_SE = sd(estimate),
+                                           Variance = mean(variance)) %>% print()
     
-} else{
-    results %>% group_by(method) %>% summarize(MSE = mean(MSE)) %>% print()
-    
-}
 
 results_data <- list(
     results_df = results,
@@ -253,11 +249,11 @@ results_data <- list(
     fixed_test_vector = fixed_test_vector,
     draw_random_data = draw_random_data
 )
+file_path <- glue::glue("setting_1_{data_type}_data_{draw_random_data}_tuned_de_dnn_{str_replace_all(strftime(Sys.time(), '%Y-%m-%d_%H_%M'),'-', '_')}.rds")
 results_data %>% 
     write_rds(.,
-              glue::glue("setting_1_{data_type}_data_{draw_random_data}_tuned_de_dnn_{str_replace_all(strftime(Sys.time(), '%Y-%m-%d_%H_%M'),'-', '_')}.rds")
+              file_path
               )
 
-
-
-
+print(file_path)
+print(glue::glue("scp -i ~/Dropbox/Spring\\ 2022/MISC/tdnn.pem ubuntu@{Sys.getenv('PUB_IP')}:{file_path} /Users/patrick/tdnn/non_parametric_sims/setting_1/results_tables"))

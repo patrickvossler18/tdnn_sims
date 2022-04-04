@@ -7,13 +7,14 @@ library(argparser)
 
 # Simulation Parameters ---------------------------------------------------
 parser <- arg_parser("Setting 2 params")
-parser <- add_argument(parser, "--dimension",type = "integer", default=10,
+parser <- add_argument(parser, "--dimension",type = "integer", default=3,
                        help="Dimension for the setting [default 3]")
+
 
 opt <- parse_args(parser)
 
 p = opt$dimension
-p=3
+# p=3
 print(p)
 # for(p in c(3,5,10,15,20)){
 #     print(p)
@@ -30,11 +31,12 @@ seed_val <- 1234
 num_reps <- 1000
 n_test <- 100
 
-# c_seq = c(2,4,6,8,10,15,20,25,30)
-c_seq = 2
+c_seq = c(2,4,6,8,10,15,20,25,30)
+# c_seq = 2
 c_seq_fixed = 2
 s_1_seq <- seq(1,100,1)
 dnn_s_seq <- seq(10, 100, 1)
+alpha = 0.0001
 
 n_fixed = 1000
 n = 1000
@@ -50,7 +52,8 @@ dgp_function = function(x){
 }
 
 baseline = function(x) {
-    2 * x[1] - 1
+    # 2 * x[1] - 1
+    0.125*(x[1] -1)
 }
 
 # Simulation helper functions ---------------------------------------------
@@ -74,7 +77,6 @@ knn_reg <- function(X,Y, X_test, k_val=20, est_variance=T){
     list(pred_knn = knn_mu,
          variance_knn = knn_var)
 }
-
 
 
 make_tuned_knn_results <- function(X,Y,X_test, W_0, kmax, estimate_variance=T){
@@ -150,10 +152,8 @@ tune_tdnn_trt_effect <- function(X_trt, X_ctl, Y_trt, Y_ctl, X_test, W_0, c_seq,
     )
 }
 
-
 # Draw random test data ---------------------------------------------------
 set.seed(seed_val)
-# fix X_test_random
 X_test_random <- matrix(runif(n_test * p, grid_start_end[1], grid_start_end[2]), n_test, p)
 
 mu_rand <- apply(X_test_random, MARGIN = 1, baseline) +  apply(X_test_random, MARGIN = 1, dgp_function)
@@ -165,7 +165,7 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
     
     X = matrix(runif(n * p,grid_start_end[1], grid_start_end[2]), n, p)
     X_test_fixed <- matrix(fixed_test_vector,1,p)
-    W <- rbinom(n, 1, 0.5) #treatment condition
+    W <- rbinom(n, 1, 0.5)
     epsi = matrix(rnorm(n) , n, 1)
     
     Y = apply(X, 1, baseline) +  (W - 0.5 ) * apply(X, MARGIN = 1, dgp_function) + epsi
@@ -176,7 +176,7 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
     Y_ctl <- Y[W==0]
     
     if(p>3){
-        W_0 <- tdnn:::feature_screen(X, Y)
+        W_0 <- tdnn:::feature_screen(X, Y, alpha = alpha)
     } else{
         W_0 = rep(1,p)
     }
@@ -206,15 +206,20 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
     #                                 bias = (tdnn_rand_estimate_R$trt_effect - mu_rand),
     #                                 s_1_trt = tdnn_rand_estimate_R$s_1_trt,
     #                                 s_1_ctl = tdnn_rand_estimate_R$s_1_ctl,
-    #                                 variance = ifelse(est_variance,as.numeric(tdnn_rand_estimate_R$variance), NA),
+    #                                 variance = if(est_variance){as.numeric(tdnn_rand_estimate_R$variance)} else{NA},
     #                                 method = 'tdnn_rand_r')
     tdnn_fixed_results_r <- data.frame(estimate = tdnn_fixed_estimate_R$trt_effect,
                                      loss = (tdnn_fixed_estimate_R$trt_effect - mu_fixed)^2,
                                      bias = (tdnn_fixed_estimate_R$trt_effect - mu_fixed),
                                      s_1_trt = tdnn_fixed_estimate_R$s_1_trt,
                                      s_1_ctl = tdnn_fixed_estimate_R$s_1_ctl,
-                                     variance = ifelse(est_variance,as.numeric(tdnn_fixed_estimate_R$variance),NA),
-                                     method = 'tdnn_fixed')
+                                     variance = if(est_variance){as.numeric(tdnn_fixed_estimate_R$variance)} else{NA},
+                                     method = 'tdnn_fixed') %>% mutate(
+                                         covered = case_when(
+                                             str_ends(method,"fixed") ~ abs(estimate - mu_fixed) <= qnorm(1-0.05/2) * sqrt(variance)
+                                         ),
+                                         width = 2* qnorm(1-0.05/2) * sqrt(variance)
+                                     )
     
     tdnn_rand_results <- data.frame(estimate = tdnn_rand_estimate$treatment_effect,
                                     loss = (tdnn_rand_estimate$treatment_effect - mu_rand)^2,
@@ -223,8 +228,13 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
                                     c_ctl = tdnn_rand_estimate$c_B_NN_ctl,
                                     s_1_trt = tdnn_rand_estimate$s_1_B_NN_trt,
                                     c_trt = tdnn_rand_estimate$c_B_NN_trt,
-                                    variance = ifelse(est_variance,as.numeric(tdnn_rand_estimate$variance),NA),
-                                    method = 'tdnn_rand')
+                                    variance = if(est_variance){as.numeric(tdnn_rand_estimate$variance)} else{NA},
+                                    method = 'tdnn_rand')%>% mutate(
+                                        covered = case_when(
+                                            str_ends(method,"rand") ~ abs(estimate - mu_rand) <= qnorm(1-0.05/2) * sqrt(variance)
+                                        ),
+                                        width = 2* qnorm(1-0.05/2) * sqrt(variance)
+                                    )
     # tdnn_fixed_results <- data.frame(estimate = tdnn_fixed_estimate$treatment_effect,
     #                                  loss = (tdnn_fixed_estimate$treatment_effect - mu_fixed)^2,
     #                                  bias = (tdnn_fixed_estimate$treatment_effect - mu_fixed),
@@ -232,7 +242,7 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
     #                                  c_ctl = tdnn_fixed_estimate$c_B_NN_ctl,
     #                                  s_1_trt = tdnn_fixed_estimate$s_1_B_NN_trt,
     #                                  c_trt = tdnn_fixed_estimate$c_B_NN_trt,
-    #                                  variance = ifelse(est_variance, as.numeric(tdnn_fixed_estimate$variance), NA),
+    #                                  variance = if(est_variance){as.numeric(tdnn_fixed_estimate$variance)} else{NA},
     #                                  method = 'tdnn_fixed')
     
     if(verbose) tictoc::tic("dnn results")
@@ -247,15 +257,25 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
                                    bias = (dnn_rand_estimate$trt_effect - mu_rand),
                                    s_1_trt = dnn_rand_estimate$s_1_trt,
                                    s_1_ctl = dnn_rand_estimate$s_1_ctl,
-                                   variance = ifelse(est_variance,as.numeric(dnn_rand_estimate$variance), NA),
-                                   method = 'dnn_rand')
+                                   variance = if(est_variance){as.numeric(dnn_rand_estimate$variance)} else{NA},
+                                   method = 'dnn_rand')%>% mutate(
+                                       covered = case_when(
+                                           str_ends(method,"rand") ~ abs(estimate - mu_rand) <= qnorm(1-0.05/2) * sqrt(variance)
+                                       ),
+                                       width = 2* qnorm(1-0.05/2) * sqrt(variance)
+                                   )
     dnn_fixed_results <- data.frame(estimate = dnn_fixed_estimate$trt_effect,
                                     loss = (dnn_fixed_estimate$trt_effect - mu_fixed)^2,
                                     bias = (dnn_fixed_estimate$trt_effect - mu_fixed),
                                     s_1_trt = dnn_fixed_estimate$s_1_trt,
                                     s_1_ctl = dnn_fixed_estimate$s_1_ctl,
-                                    variance = ifelse(est_variance,as.numeric(dnn_fixed_estimate$variance),NA),
-                                    method = 'dnn_fixed')
+                                    variance = if(est_variance){as.numeric(dnn_fixed_estimate$variance)} else{NA},
+                                    method = 'dnn_fixed')%>% mutate(
+                                        covered = case_when(
+                                            str_ends(method,"fixed") ~ abs(estimate - mu_fixed) <= qnorm(1-0.05/2) * sqrt(variance)
+                                        ),
+                                        width = 2* qnorm(1-0.05/2) * sqrt(variance)
+                                    )
     
     if(verbose) tictoc::tic("knn results")
     knn_fixed_estimate <- tune_knn_trt_effect(X_trt, X_ctl, Y_trt, Y_ctl, X_test_fixed, W_0,kmax = 200, estimate_variance = est_variance)
@@ -267,15 +287,26 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
                                    bias = (knn_rand_estimate$trt_effect - mu_rand),
                                    k_trt = knn_rand_estimate$best_k_trt,
                                    k_ctl = knn_rand_estimate$best_k_ctl,
-                                   variance = ifelse(est_variance, as.numeric(knn_rand_estimate$variance), NA),
-                                   method = 'knn_rand')
+                                   variance = if(est_variance){as.numeric(knn_rand_estimate$variance)} else{NA},
+                                   method = 'knn_rand')%>% mutate(
+                                       covered = case_when(
+                                           str_ends(method,"rand") ~ abs(estimate - mu_rand) <= qnorm(1-0.05/2) * sqrt(variance)
+                                       ),
+                                       width = 2* qnorm(1-0.05/2) * sqrt(variance)
+                                   )
     knn_fixed_results <- data.frame(estimate = knn_fixed_estimate$trt_effect,
                                     loss = (knn_fixed_estimate$trt_effect - mu_fixed)^2,
                                     bias = (knn_fixed_estimate$trt_effect - mu_fixed),
                                     k_trt = knn_fixed_estimate$best_k_trt,
                                     k_ctl = knn_fixed_estimate$best_k_ctl,
-                                    variance = ifelse(est_variance, as.numeric(knn_fixed_estimate$variance), NA),
-                                    method = 'knn_fixed')
+                                    variance = if(est_variance){as.numeric(knn_fixed_estimate$variance)} else{NA},
+                                    method = 'knn_fixed')%>% mutate(
+                                        covered = case_when(
+                                            str_ends(method,"fixed") ~ abs(estimate - mu_fixed) <= qnorm(1-0.05/2) * sqrt(variance)
+                                            
+                                        ),
+                                        width = 2* qnorm(1-0.05/2) * sqrt(variance)
+                                    )
     
     
     results <- bind_rows(tdnn_rand_results, 
@@ -287,15 +318,18 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
     
     results %>% group_by(method) %>% summarize(MSE = mean(loss),
                                                Bias = mean(bias),
-                                               Estimate = mean(estimate),
-                                               Estimate_SE = sd(estimate),
-                                               Variance = mean(variance)) %>% 
+                                               # Estimate = mean(estimate),
+                                               # Estimate_SE = sd(estimate),
+                                               Variance = mean(variance),
+                                               Coverage = mean(covered),
+                                               Width = mean(width)
+                                               ) %>% 
         arrange(MSE)%>% print()
     
     return(results)
 }
 
-# num_reps = 100
+#num_reps = 100
 
 set.seed(seed_val)
 results <- map_dfr(1:num_reps, function(i){
@@ -310,9 +344,11 @@ results %>%
     summarize(
         MSE = mean(loss),
         Bias = mean(bias),
-        Estimate = mean(estimate),
-        Estimate_SE = sd(estimate),
-        Variance = mean(variance)
+        # Estimate = mean(estimate),
+        # Estimate_SE = sd(estimate),
+        Variance = mean(variance),
+        Coverage = mean(covered),
+        Width = mean(width)
     ) %>%
     arrange(MSE) %>% print()
 
@@ -330,11 +366,11 @@ results_data <- list(
     fixed_test_vector = fixed_test_vector,
     draw_random_data = draw_random_data
 )
+file_path <- glue::glue("setting_3_p_{p}_{data_type}_data_{draw_random_data}_tuned_de_dnn_{str_replace_all(strftime(Sys.time(), '%Y-%m-%d_%H_%M'),'-', '_')}.rds")
 results_data %>% 
-    write_rds(.,
-              glue::glue("setting_3_p_{p}_{data_type}_data_{draw_random_data}_tuned_de_dnn_{str_replace_all(strftime(Sys.time(), '%Y-%m-%d_%H_%M'),'-', '_')}.rds")
-    )
+    write_rds(.,file_path)
 
-
+print(file_path)
+print(glue::glue("scp -i ~/Dropbox/Spring\\ 2022/MISC/tdnn.pem ubuntu@{Sys.getenv('PUB_IP')}:{file_path} /Users/patrick/tdnn/non_parametric_sims/setting_3/results_tables"))
 # }
 
