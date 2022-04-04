@@ -6,7 +6,7 @@ library(argparser)
 
 
 # Simulation Parameters ---------------------------------------------------
-parser <- arg_parser("Setting 2 params")
+parser <- arg_parser("Setting 3 params")
 parser <- add_argument(parser, "--dimension",type = "integer", default=3,
                        help="Dimension for the setting [default 3]")
 

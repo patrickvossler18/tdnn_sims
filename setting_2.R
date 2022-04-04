@@ -56,7 +56,7 @@ dgp_function = function(x){
     # term4 <- -0.2 * exp(-(9*x[1]-4)^2 - (9*x[2]-7)^2)
     # term1+term2+term3+term4
     
-    term1 <- 4 * (x[1] - 2 + 8*x[2] - 8*x[2]^2)^2
+    term1 <- 4 * (4*x[1] - 2 + 8*x[2] - 8*x[2]^2)^2
     term2 <- (3 - 4*x[2])^2
     term3 <- 16 * sqrt(x[3]+1) * (2*x[3]-1)^2
     term1+term2+term3
@@ -234,15 +234,28 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
         ) %>%
         arrange(MSE) %>% print()
     
-    return(results)
+    # return(results)
+    return(list(results= results, W_0 = W_0))
 }
 
+# num_reps = 100
+# W_0_res <- list()
+# results <- list()
+# set.seed(seed_val)
+# for(i in 1:num_reps){
+#     sim_res <- run_sim(i, n_fixed, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_data, est_variance = est_variance, verbose=verbose)
+#     W_0_res[[i]] <-  sim_res$W_0
+#     results[[i]] <- sim_res$results
+# }
+# 
+# 
+# results <- bind_rows(results)
+# print(colSums(matrix(unlist(W_0_res), num_reps, p,byrow = T))/num_reps)
 
 set.seed(seed_val)
 results <- map_dfr(1:num_reps, function(i){
     run_sim(i, n_fixed, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_data, est_variance = est_variance, verbose=verbose)
 })
-
 
 
 # View and Save Results ---------------------------------------------------
@@ -258,6 +271,7 @@ results %>%
     ) %>%
     arrange(MSE) %>% print()
     
+
 
 results_data <- list(
     results_df = results,
