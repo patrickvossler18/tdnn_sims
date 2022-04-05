@@ -329,7 +329,7 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
     return(results)
 }
 
-#num_reps = 100
+num_reps = 10
 
 set.seed(seed_val)
 results <- map_dfr(1:num_reps, function(i){
