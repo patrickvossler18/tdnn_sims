@@ -36,7 +36,7 @@ c_seq = c(2,4,6,8,10,15,20,25,30)
 c_seq_fixed = 2
 s_1_seq <- seq(1,100,1)
 dnn_s_seq <- seq(10, 100, 1)
-alpha = 0.0001
+alpha = 0.001
 
 n_fixed = 1000
 n = 1000
