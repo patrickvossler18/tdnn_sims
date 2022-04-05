@@ -252,6 +252,8 @@ run_sim <- function(i, n, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_d
 # results <- bind_rows(results)
 # print(colSums(matrix(unlist(W_0_res), num_reps, p,byrow = T))/num_reps)
 
+num_reps = 10
+
 set.seed(seed_val)
 results <- map_dfr(1:num_reps, function(i){
     run_sim(i, n_fixed, c_seq, X_test_random, mu_rand, mu_fixed, draw_random_data, est_variance = est_variance, verbose=verbose)

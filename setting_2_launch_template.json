@@ -9,7 +9,7 @@
             "Ebs": {
                 "Encrypted": false,
                 "DeleteOnTermination": true,
-                "SnapshotId": "snap-05f0f4463b7e6b45a",
+                "SnapshotId": "snap-04cd57c10bd771826",
                 "VolumeSize": 8,
                 "VolumeType": "gp2"
             }
@@ -30,7 +30,7 @@
             "NetworkCardIndex": 0
         }
     ],
-    "ImageId": "ami-087984257b38f994d",
+    "ImageId": "ami-07fb55ece2bfe9c9c",
     "InstanceType": "c5.2xlarge",
     "KeyName": "tdnn",
     "Monitoring": {

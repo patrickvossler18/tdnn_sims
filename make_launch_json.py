@@ -5,7 +5,7 @@ ec2_client = boto3.client("ec2")
 ENCODING = "utf-8"
 
 for setting_num in ["2"]:
-    for p in [10, 15, 20]:
+    for p in [3]:
         # read in the launch template as a dictionary
         with open(f"setting_{setting_num}_launch_template.json", "r") as fp:
             setting_template = json.load(fp)
